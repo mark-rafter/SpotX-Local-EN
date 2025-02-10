@@ -1,7 +1,7 @@
 @echo off
 
 :: Line for changing spotx parameters, each parameter should be separated by a space
-set param=-confirm_uninstall_ms_spoti -confirm_spoti_recomended_over -podcasts_off -block_update_on -start_spoti -new_theme -adsections_off -lyrics_stat spotify
+set param=-confirm_uninstall_ms_spoti -confirm_spoti_recomended_over -podcasts_off -block_update_on -new_theme -adsections_off -lyrics_stat spotify
 
 set url='https://raw.githubusercontent.com/SpotX-Official/spotx-official.github.io/main/run.ps1'
 set url2='https://spotx-official.github.io/run.ps1'

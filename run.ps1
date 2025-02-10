@@ -45,9 +45,6 @@ param
     [Parameter(HelpMessage = 'Disable Spotify autostart on Windows boot.')]
     [switch]$DisableStartup,
     
-    [Parameter(HelpMessage = 'Automatic launch of Spotify after installation is complete.')]
-    [switch]$start_spoti,
-    
     [Parameter(HelpMessage = 'Experimental features operated by Spotify.')]
     [switch]$exp_spotify,
 
@@ -275,7 +272,6 @@ $sectionPath = Join-Path $currentPath 'js-helper/sectionBlock.js'
 $goofyPath = Join-Path $currentPath 'js-helper/goofyHistory.js'
 $lyricsRulesPath = Join-Path $currentPath '/css-helper/lyrics-color/rules.css'
 $lyricsColorsPath = Join-Path $currentPath '/css-helper/lyrics-color/colors.css'
-$loginSpaPath = Join-Path $currentPath '/res/login.spa'
 
 $spotifyDirectory = Join-Path $env:APPDATA 'Spotify'
 $spotifyDirectory2 = Join-Path $env:LOCALAPPDATA 'Spotify'
@@ -1534,12 +1530,6 @@ if ($regex1 -and $regex2 -and $regex3 -and $regex4 -and $regex5) {
 # Binary patch
 extract -counts 'exe' -helper 'Binary'
 
-# fix login for old versions
-if ([version]$offline -ge [version]"1.1.87.612" -and [version]$offline -le [version]"1.2.5.1006") {
-    $login_spa = Join-Path (Join-Path $env:APPDATA 'Spotify\Apps') 'login.spa'
-    Copy-Item $loginSpaPath -Destination $login_spa
-}
-
 # Disable Startup client
 if ($DisableStartup) {
     $prefsPath = "$env:APPDATA\Spotify\prefs"
@@ -1571,8 +1561,5 @@ app.autostart-mode="off"
     }
 
 }
-
-# Start Spotify
-if ($start_spoti) { Start-Process -WorkingDirectory $spotifyDirectory -FilePath $spotifyExecutable }
 
 Write-Host ($lang).InstallComplete`n -ForegroundColor Green
