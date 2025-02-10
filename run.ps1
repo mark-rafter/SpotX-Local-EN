@@ -88,12 +88,6 @@ param
         })]
     [string]$lyrics_stat,
 
-    [Parameter(HelpMessage = 'Accumulation of track listening history with Goofy.')]
-    [string]$urlform_goofy = $null,
-
-    [Parameter(HelpMessage = 'Accumulation of track listening history with Goofy.')]
-    [string]$idbox_goofy = $null,
-
     [Parameter(HelpMessage = 'Error log ru string.')]
     [switch]$err_ru,
     
@@ -269,7 +263,6 @@ function Format-LanguageCode {
 $currentPath = (Get-Item .).FullName
 $patchesPath = Join-Path $currentPath 'patches/patches.json'
 $sectionPath = Join-Path $currentPath 'js-helper/sectionBlock.js'
-$goofyPath = Join-Path $currentPath 'js-helper/goofyHistory.js'
 $lyricsRulesPath = Join-Path $currentPath '/css-helper/lyrics-color/rules.css'
 $lyricsColorsPath = Join-Path $currentPath '/css-helper/lyrics-color/colors.css'
 
@@ -1038,10 +1031,7 @@ function Helper($paramname) {
                 }
             }
 
-            if ($urlform_goofy -and $idbox_goofy) {
-                $webjson.VariousJs.goofyhistory.replace = $webjson.VariousJs.goofyhistory.replace -f "`"$urlform_goofy`"", "`"$idbox_goofy`""
-            }
-            else { Remove-Json -j $VarJs -p "goofyhistory" }
+            Remove-Json -j $VarJs -p "goofyhistory"
             
             if (!($ru)) { Remove-Json -j $VarJs -p "offrujs" }
 
@@ -1405,22 +1395,6 @@ If ($test_spa) {
             Pause
             Exit
             $podcast_off, $adsections_off = $false
-        }
-    }
-	
-    # goofy History
-    if ($urlform_goofy -and $idbox_goofy) {
-
-        $goofy = Get-Content -Raw $goofyPath
-        
-        if ($goofy -ne $null) {
-
-            injection -p $xpui_spa_patch -f "spotx-helper" -n "goofyHistory.js" -c $goofy
-        }
-        else {
-            write-host "goofyHistory was null"
-            Pause
-            Exit
         }
     }
 
