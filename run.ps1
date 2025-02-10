@@ -69,9 +69,6 @@ param
     [Parameter(HelpMessage = 'Enable funny progress bar.')]
     [switch]$funnyprogressBar,
 
-    [Parameter(HelpMessage = 'New theme activated (new right and left sidebar, some cover change)')]
-    [switch]$new_theme,
-
     [Parameter(HelpMessage = 'Enable right sidebar coloring to match cover color)')]
     [switch]$rightsidebarcolor,
     
@@ -659,11 +656,6 @@ if (!($block_update_on) -and !($block_update_off)) {
 }
 if ($ch -eq 'y') { $not_block_update = $false }
 
-if (!($new_theme) -and [version]$offline -ge [version]"1.2.14.1141") {
-    Write-Warning "This version does not support the old theme, use version 1.2.13.661 or below"
-    Write-Host
-}
-
 if ($ch -eq 'n') {
     $not_block_update = $true
     $ErrorActionPreference = 'SilentlyContinue'
@@ -856,25 +848,15 @@ function Helper($paramname) {
             if ($homesub_off) { 
                 Move-Json -n "HomeSubfeeds" -t $Enable -f $Disable 
             }
-
-            # Old theme
-            if (!($new_theme) -and [version]$offline -le [version]"1.2.13.661") {
-
-                Move-Json -n 'RightSidebar', 'LeftSidebar' -t $Enable -f $Disable
-
-                Remove-Json -j $Custom -p "NavAlt", 'NavAlt2'
-                Remove-Json -j $Enable -p 'RightSidebarLyrics', 'RightSidebarCredits', 'RightSidebar', 'LeftSidebar', 'RightSidebarColors'
+            
+            if ($rightsidebar_off -and [version]$offline -lt [version]"1.2.24.756") { 
+                Move-Json -n 'RightSidebar' -t $Enable -from $Disable
             }
-            # New theme
             else {
-                if ($rightsidebar_off -and [version]$offline -lt [version]"1.2.24.756") { 
-                    Move-Json -n 'RightSidebar' -t $Enable -from $Disable
-                }
-                else {
-                    if (!($rightsidebarcolor)) { Remove-Json -j $Enable -p 'RightSidebarColors' }
-                    if ($old_lyrics) { Remove-Json -j $Enable -p 'RightSidebarLyrics' } 
-                }
+                if (!($rightsidebarcolor)) { Remove-Json -j $Enable -p 'RightSidebarColors' }
+                if ($old_lyrics) { Remove-Json -j $Enable -p 'RightSidebarLyrics' } 
             }
+
             if (!$premium) { Remove-Json -j $Enable -p 'RemoteDownloads' }
 
             # Disable unimportant exp
