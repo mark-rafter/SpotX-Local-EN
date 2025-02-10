@@ -88,9 +88,6 @@ param
     [Parameter(HelpMessage = 'Disable native lyrics')]
     [switch]$lyrics_block,
 
-    [Parameter(HelpMessage = 'Do not create desktop shortcut.')]
-    [switch]$no_shortcut,
-
     [Parameter(HelpMessage = 'Static color for lyrics.')]
     [ArgumentCompleter({ param($cmd, $param, $wordToComplete)
             [array] $validValues = @('blue', 'blueberry', 'discord', 'drot', 'default', 'forest', 'fresh', 'github', 'lavender', 'orange', 'postlight', 'pumpkin', 'purple', 'radium', 'relish', 'red', 'sandbar', 'spotify', 'spotify#2', 'strawberry', 'turquoise', 'yellow', 'zing', 'pinkle', 'krux', 'royal', 'oceano')
@@ -276,6 +273,15 @@ function Format-LanguageCode {
     return $returnCode 
 }
 
+$currentPath = (Get-Item .).FullName
+$patchesPath = Join-Path $currentPath 'patches/patches.json'
+$sectionPath = Join-Path $currentPath 'js-helper/sectionBlock.js'
+$goofyPath = Join-Path $currentPath 'js-helper/goofyHistory.js'
+$ruPath = Join-Path $currentPath 'patches/Augmented%20translation/ru.json'
+$lyricsRulesPath = Join-Path $currentPath '/css-helper/lyrics-color/rules.css'
+$lyricsColorsPath = Join-Path $currentPath '/css-helper/lyrics-color/colors.css'
+$loginSpaPath = Join-Path $currentPath '/res/login.spa'
+
 $spotifyDirectory = Join-Path $env:APPDATA 'Spotify'
 $spotifyDirectory2 = Join-Path $env:LOCALAPPDATA 'Spotify'
 $spotifyExecutable = Join-Path $spotifyDirectory 'Spotify.exe'
@@ -291,29 +297,15 @@ if ($psv -ge 7) {
     Import-Module Appx -UseWindowsPowerShell -WarningAction:SilentlyContinue
 }
 
-# add Tls12
-[Net.ServicePointManager]::SecurityProtocol = 3072
 
-function Get-Link {
-    param (
-        [Alias("e")]
-        [string]$endlink
-    )
-
-    switch ($mirror) {
-        $true { return "https://spotx-official.github.io/SpotX" + $endlink }
-        default { return "https://raw.githubusercontent.com/SpotX-Official/SpotX/main" + $endlink }
-    }
-}
 
 function CallLang($clg) {
 
     $ProgressPreference = 'SilentlyContinue'
     
     try {
-        $response = (iwr -Uri (Get-Link -e "/scripts/installer-lang/$clg.ps1") -UseBasicParsing).Content
-        if ($mirror) { $response = [System.Text.Encoding]::UTF8.GetString($response) }
-        Invoke-Expression $response
+        $response = Get-Content -Path "./scripts/installer-lang/$clg.ps1" -Encoding UTF8 -Raw 
+		Invoke-Expression $response
     }
     catch {
         Write-Host "Error loading $clg language"
@@ -388,45 +380,6 @@ else {
 }
 $online = ($onlineFull -split ".g")[0]
 
-
-function Get {
-    param (
-        [Parameter(Mandatory = $true)]
-        [string]$Url,
-        [int]$MaxRetries = 3,
-        [int]$RetrySeconds = 3,
-        [string]$OutputPath
-    )
-
-    $params = @{
-        Uri        = $Url
-        TimeoutSec = 15
-    }
-
-    if ($OutputPath) {
-        $params['OutFile'] = $OutputPath
-    }
-
-    for ($i = 0; $i -lt $MaxRetries; $i++) {
-        try {
-            $response = Invoke-RestMethod @params
-            return $response
-        }
-        catch {
-            Write-Warning "Attempt $($i+1) of $MaxRetries failed: $_"
-            if ($i -lt $MaxRetries - 1) {
-                Start-Sleep -Seconds $RetrySeconds
-            }
-        }
-    }
-
-    Write-Host
-    Write-Host "ERROR: " -ForegroundColor Red -NoNewline; Write-Host "Failed to retrieve data from $Url" -ForegroundColor White
-    Write-Host
-    return $null
-}
-
-
 function incorrectValue {
 
     Write-Host ($lang).Incorrect"" -ForegroundColor Red -NoNewline
@@ -476,103 +429,6 @@ function Mod-F {
     return $result
 }
 
-function downloadSp() {
-
-    $webClient = New-Object -TypeName System.Net.WebClient
-
-    Import-Module BitsTransfer
-        
-    $max_x86 = [Version]"1.2.53"
-    $versionParts = $onlineFull -split '\.'
-    $short = [Version]"$($versionParts[0]).$($versionParts[1]).$($versionParts[2])"
-    $arch = if ($short -le $max_x86) { "win32-x86" } else { "win32-x86_64" }
-
-    $web_Url = "https://download.scdn.co/upgrade/client/$arch/spotify_installer-$onlineFull.exe"
-    $local_Url = "$PWD\SpotifySetup.exe" 
-    $web_name_file = "SpotifySetup.exe"
-
-    try { if (curl.exe -V) { $curl_check = $true } }
-    catch { $curl_check = $false }
-    
-    try { 
-        if ($curl_check) {
-            $stcode = curl.exe -Is -w "%{http_code} \n" -o /dev/null -k $web_Url --retry 2 --ssl-no-revoke
-            if ($stcode.trim() -ne "200") {
-                Write-Host "Curl error code: $stcode"; throw
-            }
-            curl.exe -q -k $web_Url -o $local_Url --progress-bar --retry 3 --ssl-no-revoke
-            return
-        }
-        if (!($curl_check ) -and $null -ne (Get-Module -Name BitsTransfer -ListAvailable)) {
-            $ProgressPreference = 'Continue'
-            Start-BitsTransfer -Source  $web_Url -Destination $local_Url  -DisplayName ($lang).Download5 -Description "$online "
-            return
-        }
-        if (!($curl_check ) -and $null -eq (Get-Module -Name BitsTransfer -ListAvailable)) {
-            $webClient.DownloadFile($web_Url, $local_Url) 
-            return
-        }
-    }
-
-    catch {
-        Write-Host
-        Write-Host ($lang).Download $web_name_file -ForegroundColor RED
-        $Error[0].Exception
-        Write-Host
-        Write-Host ($lang).Download2`n
-        Start-Sleep -Milliseconds 5000 
-        try { 
-
-            if ($curl_check) {
-                $stcode = curl.exe -Is -w "%{http_code} \n" -o /dev/null -k $web_Url --retry 2 --ssl-no-revoke
-                if ($stcode.trim() -ne "200") {
-                    Write-Host "Curl error code: $stcode"; throw
-                }
-                curl.exe -q -k $web_Url -o $local_Url --progress-bar --retry 3 --ssl-no-revoke
-                return
-            }
-            if (!($curl_check ) -and $null -ne (Get-Module -Name BitsTransfer -ListAvailable) -and !($curl_check )) {
-                Start-BitsTransfer -Source  $web_Url -Destination $local_Url  -DisplayName ($lang).Download5 -Description "$online "
-                return
-            }
-            if (!($curl_check ) -and $null -eq (Get-Module -Name BitsTransfer -ListAvailable) -and !($curl_check )) {
-                $webClient.DownloadFile($web_Url, $local_Url) 
-                return
-            }
-        }
-        
-        catch {
-            Write-Host ($lang).Download3 -ForegroundColor RED
-            $Error[0].Exception
-            Write-Host
-            Write-Host ($lang).Download4`n
-            ($lang).StopScript
-            $tempDirectory = $PWD
-            Pop-Location
-            Start-Sleep -Milliseconds 200
-            Remove-Item -Recurse -LiteralPath $tempDirectory
-            Pause
-            Exit
-        }
-    }
-} 
-
-function DesktopFolder {
-
-    # If the default Dekstop folder does not exist, then try to find it through the registry.
-    $ErrorActionPreference = 'SilentlyContinue' 
-    if (Test-Path "$env:USERPROFILE\Desktop") {  
-        $desktop_folder = "$env:USERPROFILE\Desktop"  
-    }
-
-    $regedit_desktop_folder = Get-ItemProperty -Path "Registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\"
-    $regedit_desktop = $regedit_desktop_folder.'{754AC886-DF64-4CBA-86B5-F7FBF4FBCEF5}'
- 
-    if (!(Test-Path "$env:USERPROFILE\Desktop")) {
-        $desktop_folder = $regedit_desktop
-    }
-    return $desktop_folder
-}
 
 function Kill-Spotify {
     param (
@@ -764,35 +620,6 @@ if ($spotifyInstalled) {
     
     # Unsupported version Spotify
     if ($testversion) {
-        # Submit unsupported version of Spotify to google form for further processing
-        try { 
-            
-            # Country check
-            $country = [System.Globalization.RegionInfo]::CurrentRegion.EnglishName
-
-            $txt = [IO.File]::ReadAllText($spotifyExecutable)
-            $regex = "(?<![\w\-])(\d+)\.(\d+)\.(\d+)\.(\d+)(\.g[0-9a-f]{8})(?![\w\-])"
-            $matches = [regex]::Matches($txt, $regex)
-            $ver = $matches[0].Value
-
-            $Parameters = @{
-                Uri    = 'https://docs.google.com/forms/d/e/1FAIpQLSegGsAgilgQ8Y36uw-N7zFF6Lh40cXNfyl1ecHPpZcpD8kdHg/formResponse'
-                Method = 'POST'
-                Body   = @{
-                    'entry.620327948'  = $ver
-                    'entry.1951747592' = $country
-                    'entry.1402903593' = $win_os
-                    'entry.860691305'  = $psv
-                    'entry.2067427976' = $online + " < " + $offline
-                }   
-            }
-            $null = Invoke-WebRequest -useb @Parameters 
-        }
-        catch {
-            Write-Host 'Unable to submit new version of Spotify' 
-            Write-Host "error description: "$Error[0]
-            Write-Host
-        }
 
         if ($confirm_spoti_recomended_over -or $confirm_spoti_recomended_uninstall) {
             Write-Host ($lang).NewV`n
@@ -867,62 +694,13 @@ if ($spotifyInstalled) {
 }
 # If there is no client or it is outdated, then install
 if (-not $spotifyInstalled -or $upgrade_client) {
-
-    Write-Host ($lang).DownSpoti"" -NoNewline
-    Write-Host  $online -ForegroundColor Green
-    Write-Host ($lang).DownSpoti2`n
-    
-    # Delete old version files of Spotify before installing, leave only profile files
-    $ErrorActionPreference = 'SilentlyContinue'
-    Kill-Spotify
-    Start-Sleep -Milliseconds 600
-    $null = Unlock-Folder 
-    Start-Sleep -Milliseconds 200
-    Get-ChildItem $spotifyDirectory -Exclude 'Users', 'prefs' | Remove-Item -Recurse -Force 
-    Start-Sleep -Milliseconds 200
-
-    # Client download
-    downloadSp
-    Write-Host
-
-    Start-Sleep -Milliseconds 200
-
-    # Client installation
-    Start-Process -FilePath explorer.exe -ArgumentList $PWD\SpotifySetup.exe
-    while (-not (get-process | Where-Object { $_.ProcessName -eq 'SpotifySetup' })) {}
-    wait-process -name SpotifySetup
-    Kill-Spotify
-
-    # Upgrade check version Spotify offline
-    $offline = (Get-Item $spotifyExecutable).VersionInfo.FileVersion
-
-    # Upgrade check version Spotify.bak
-    $offline_bak = (Get-Item $exe_bak).VersionInfo.FileVersion
-}
-
-
-
-# Delete Spotify shortcut if it is on desktop
-if ($no_shortcut) {
-    $ErrorActionPreference = 'SilentlyContinue'
-    $desktop_folder = DesktopFolder
-    Start-Sleep -Milliseconds 1000
-    remove-item "$desktop_folder\Spotify.lnk" -Recurse -Force
+    Write-Host "Spotify not installed or outdated"
+    Write-Host ($lang).StopScript
+    Pause
+    Exit
 }
 
 $ch = $null
-
-
-# updated Russian translation
-if ($langCode -eq 'ru' -and [version]$offline -ge [version]"1.1.92.644") { 
-    
-    $webjsonru = Get -Url (Get-Link -e "/patches/Augmented%20translation/ru.json")
-
-    if ($webjsonru -ne $null) {
-
-        $ru = $true
-    }
-}
 
 if ($podcasts_off) { 
     Write-Host ($lang).PodcatsOff`n 
@@ -958,13 +736,7 @@ if ($block_update_off) {
     $ch = 'n'
 }
 if (!($block_update_on) -and !($block_update_off)) {
-    do {
-        $text_upd = [string]($lang).UpdSelect + $upd
-        $ch = Read-Host -Prompt $text_upd
-        Write-Host
-        if (!($ch -eq 'n' -or $ch -eq 'y')) { incorrectValue } 
-    }
-    while ($ch -notmatch '^y$|^n$')
+	$ch = 'y'
 }
 if ($ch -eq 'y') { $not_block_update = $false }
 
@@ -984,7 +756,12 @@ if ($ch -eq 'n') {
 
 $ch = $null
 
-$webjson = Get -Url (Get-Link -e "/patches/patches.json") -RetrySeconds 5
+try{
+	$webjson = Get-Content -Raw $patchesPath | convertfrom-json
+}
+catch {
+	Write-Host $_
+}
         
 if ($webjson -eq $null) { 
     Write-Host
@@ -1609,7 +1386,7 @@ if ($test_js) {
 
     if ($ch -eq 'y') { 
         $Url = "https://telegra.ph/SpotX-FAQ-09-19#Can-I-use-SpotX-and-Spicetify-together?"
-        Start-Process $Url
+        Write-Host $Url
     }
 
     Write-Host ($lang).StopScript
@@ -1691,13 +1468,16 @@ If ($test_spa) {
     # Hiding Ad-like sections or turn off podcasts from the homepage
     if ($podcast_off -or $adsections_off) {
 
-        $section = Get -Url (Get-Link -e "/js-helper/sectionBlock.js")
+        $section = Get-Content -Raw $sectionPath
         
         if ($section -ne $null) {
 
             injection -p $xpui_spa_patch -f "spotx-helper" -n "sectionBlock.js" -c $section
         }
         else {
+            write-host "sectionBlock was null"
+            Pause
+            Exit
             $podcast_off, $adsections_off = $false
         }
     }
@@ -1705,18 +1485,23 @@ If ($test_spa) {
     # goofy History
     if ($urlform_goofy -and $idbox_goofy) {
 
-        $goofy = Get -Url (Get-Link -e "/js-helper/goofyHistory.js")
+        $goofy = Get-Content -Raw $goofyPath
         
         if ($goofy -ne $null) {
 
             injection -p $xpui_spa_patch -f "spotx-helper" -n "goofyHistory.js" -c $goofy
         }
+        else {
+            write-host "goofyHistory was null"
+            Pause
+            Exit
+        }
     }
 
     # Static color for lyrics
     if ($lyrics_stat) {
-        $rulesContent = Get -Url (Get-Link -e "/css-helper/lyrics-color/rules.css")
-        $colorsContent = Get -Url (Get-Link -e "/css-helper/lyrics-color/colors.css")
+        $rulesContent = Get-Content -Raw $lyricsRulesPath
+        $colorsContent = Get-Content -Raw $lyricsColorsPath
 
         $colorsContent = $colorsContent -replace '{{past}}', "$($webjson.others.themelyrics.theme.$lyrics_stat.pasttext)"
         $colorsContent = $colorsContent -replace '{{current}}', "$($webjson.others.themelyrics.theme.$lyrics_stat.current)"
@@ -1797,36 +1582,6 @@ if ($ru) {
     Remove-Item $patch_lang -Exclude *en*, *ru* -Recurse
 }
 
-# Create a desktop shortcut
-$ErrorActionPreference = 'SilentlyContinue' 
-
-if (!($no_shortcut)) {
-
-    $desktop_folder = DesktopFolder
-
-    If (!(Test-Path $desktop_folder\Spotify.lnk)) {
-        $source = Join-Path $env:APPDATA 'Spotify\Spotify.exe'
-        $target = "$desktop_folder\Spotify.lnk"
-        $WorkingDir = "$env:APPDATA\Spotify"
-        $WshShell = New-Object -comObject WScript.Shell
-        $Shortcut = $WshShell.CreateShortcut($target)
-        $Shortcut.WorkingDirectory = $WorkingDir
-        $Shortcut.TargetPath = $source
-        $Shortcut.Save()      
-    }
-}
-
-# Create shortcut in start menu
-If (!(Test-Path $start_menu)) {
-    $source = Join-Path $env:APPDATA 'Spotify\Spotify.exe'
-    $target = $start_menu
-    $WorkingDir = "$env:APPDATA\Spotify"
-    $WshShell = New-Object -comObject WScript.Shell
-    $Shortcut = $WshShell.CreateShortcut($target)
-    $Shortcut.WorkingDirectory = $WorkingDir
-    $Shortcut.TargetPath = $source
-    $Shortcut.Save()      
-}
 
 $ANSI = [Text.Encoding]::GetEncoding(1251)
 $old = [IO.File]::ReadAllText($spotifyExecutable, $ANSI)
@@ -1852,7 +1607,7 @@ extract -counts 'exe' -helper 'Binary'
 # fix login for old versions
 if ([version]$offline -ge [version]"1.1.87.612" -and [version]$offline -le [version]"1.2.5.1006") {
     $login_spa = Join-Path (Join-Path $env:APPDATA 'Spotify\Apps') 'login.spa'
-    Get -Url (Get-Link -e "/res/login.spa") -OutputPath $login_spa
+    Copy-Item $loginSpaPath -Destination $login_spa
 }
 
 # Disable Startup client
