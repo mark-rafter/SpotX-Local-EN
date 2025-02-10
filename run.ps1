@@ -5,10 +5,6 @@ param
     [Alias("v")]
     [string]$version,
 
-    [Parameter(HelpMessage = "Use github.io mirror instead of raw.githubusercontent.")]
-    [Alias("m")]
-    [switch]$mirror,
-
     [Parameter(HelpMessage = "Developer mode activation.")]
     [Alias("dev")]
     [switch]$devtools,
@@ -277,7 +273,6 @@ $currentPath = (Get-Item .).FullName
 $patchesPath = Join-Path $currentPath 'patches/patches.json'
 $sectionPath = Join-Path $currentPath 'js-helper/sectionBlock.js'
 $goofyPath = Join-Path $currentPath 'js-helper/goofyHistory.js'
-$ruPath = Join-Path $currentPath 'patches/Augmented%20translation/ru.json'
 $lyricsRulesPath = Join-Path $currentPath '/css-helper/lyrics-color/rules.css'
 $lyricsColorsPath = Join-Path $currentPath '/css-helper/lyrics-color/colors.css'
 $loginSpaPath = Join-Path $currentPath '/res/login.spa'
